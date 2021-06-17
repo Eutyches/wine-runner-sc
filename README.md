@@ -10,7 +10,7 @@ It is currently aimed at Star Citizen support, but will most likely support othe
 
 This is version 2 - hugely rewritten to avoid as much rebuilding and recompilation as possible. Containers are built, wine sources downloaded (and patched if necessary) and then compiled (with ccache so recompiles are much less painful) into a runner. You could then package and release the runner.
 
-This version of the builder currently uses Ubuntu 19.10 containers, so older distros can struggle with binary incompatibilities with the produced runners.
+This version of the builder currently uses Ubuntu 20.04 containers, so older distros can struggle with binary incompatibilities with the produced runners.
 
 ## Prerequisites
 
