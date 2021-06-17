@@ -41,7 +41,7 @@ if [[ "$do_wine_staging" == "yes" ]]; then
     echo "Doing wine staging"
     if [[ "$wine_staging_list" == "" ]]; then
         echo "with default patch list (did you mean to set one with wine_staging_list?)"
-        wine_staging_list="all"
+        wine_staging_list="wined3d* d3d11* winex11-Vulkan_support"
     fi
 
     echo "Cloning wine staging from git"
@@ -53,10 +53,16 @@ if [[ "$do_wine_staging" == "yes" ]]; then
 
     cd $DIR/build/wine-staging
 
+    staging_extra_exclude=""
+    if [[ "$wine_staging_exclude" != "" ]]; then
+        echo "Excluding $wine_staging_exclude"
+        staging_extra_exclude="-W $wine_staging_exclude"
+    fi
+
     if [[ "$wine_staging_list" == "all" ]] || [[ "$wine_staging_list" == "*" ]]; then
         echo "Installing ALL wine staging patches"
         set -x
-        docker run --rm -t -v $DIR/build:/build --name wine-builder-patcher wine-builder64:latest /build/wine-staging/patches/patchinstall.sh DESTDIR=/build/wine-git/ --force-autoconf --all
+        docker run --rm -t -v $DIR/build:/build --name wine-builder-patcher wine-builder64:latest /build/wine-staging/patches/patchinstall.sh DESTDIR=/build/wine-git/ --force-autoconf --all $staging_extra_exclude
     else
         patchlist=""
 
@@ -67,7 +73,7 @@ if [[ "$do_wine_staging" == "yes" ]]; then
 
         echo "Run patcher (in container)"
         set -x
-        docker run --rm -t -v $DIR/build:/build --name wine-builder-patcher wine-builder64:latest /build/wine-staging/patches/patchinstall.sh DESTDIR=/build/wine-git/ --force-autoconf $patchlist
+        docker run --rm -t -v $DIR/build:/build --name wine-builder-patcher wine-builder64:latest /build/wine-staging/patches/patchinstall.sh DESTDIR=/build/wine-git/ --force-autoconf $staging_extra_exclude $patchlist
     fi
 
     docker run --rm -t -v $DIR/build:/build --name wine-builder-patcher wine-builder64:latest chown -R $UID:$UID /build/
@@ -79,10 +85,24 @@ fi
 echo "Checking for/applying local patches"
 cd $DIR/build/wine-git
 
-for file in $(ls $DIR/patches/*.patch 2> /dev/null || true); do
-    echo "Applying $file"
-    patch -l -p1 < $file
-done
+do_patches() {
+    local dir="$1"
+
+    for file in $(ls $dir/*.patch 2> /dev/null || true); do
+        echo "Applying $file"
+        patch -l -p1 < $file
+    done
+}
+
+if [[ -e "$DIR/patches/$wine_version/staging" ]] && [[ "$do_wine_staging" == "yes" ]]; then
+    echo "Found staging patch folder"
+    do_patches "$DIR/patches/$wine_version/staging"
+elif [[ -e "$DIR/patches/$wine_version" ]]; then
+    echo "Found patch folder"
+    do_patches "$DIR/patches/$wine_version"
+else
+    echo "No patches found for $wine_version";
+fi
 
 echo "Wine $wine_version ready for build"
 
